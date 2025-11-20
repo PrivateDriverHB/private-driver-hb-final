@@ -1,0 +1,237 @@
+/* RESET */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #050608;
+  color: #f5f5f5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: 0.2s ease;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+/* HEADER */
+header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1.25rem 1.25rem 0.75rem;
+  display: flex;
+  justify-content: center;
+}
+
+.nav-inner {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #facc6b;
+}
+
+/* 🎯 NAVIGATION */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+}
+
+/* 🔥 Lien normal */
+.nav-links a {
+  opacity: 0.8;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+/* 🟡 Hover */
+.nav-links a:hover {
+  opacity: 1;
+  border-bottom: 2px solid rgba(250, 204, 107, 0.3);
+}
+
+/* 🟨 Lien ACTIF */
+.nav-links a.active {
+  color: #facc6b;
+  opacity: 1 !important;
+  font-weight: 600;
+  border-bottom: 2px solid #facc6b;
+}
+
+/* 🌍 Langues */
+.lang-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.nav-links a.lang {
+  font-weight: 600;
+  opacity: 0.75;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-links a.lang.active {
+  opacity: 1;
+  color: #facc6b;
+  border-bottom: 2px solid #facc6b;
+}
+
+/* Téléphone */
+.nav-phone {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* BADGE */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 107, 0.18);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #facc6b;
+  background: linear-gradient(120deg, rgba(250, 204, 107, 0.12), transparent);
+}
+
+/* HERO */
+.hero {
+  padding-top: 2.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1.25fr);
+  gap: 2.5rem;
+  align-items: flex-start;
+}
+
+.hero-eyebrow {
+  margin-bottom: 0.75rem;
+}
+
+.hero-title {
+  font-size: clamp(2.2rem, 3.2vw, 2.8rem);
+  line-height: 1.1;
+  margin: 0 0 0.75rem;
+}
+
+.hero-subtitle {
+  margin: 0 0 1.75rem;
+  color: #d4d4d4;
+  max-width: 32rem;
+}
+
+/* CTA buttons */
+.btn {
+  border-radius: 999px;
+  padding: 0.65rem 1.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-primary {
+  background: radial-gradient(circle at 0% 0%, #facc6b, #b37b2a);
+  color: #050608;
+  border-color: rgba(0, 0, 0, 0.45);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.02);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Sections */
+.section {
+  margin-top: 3.5rem;
+}
+
+/* FOOTER */
+footer {
+  padding: 2rem 1.25rem 2.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 3rem;
+  font-size: 0.8rem;
+  color: #a3a3a3;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .hero,
+  .grid-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nav-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 600px) {
+  main {
+    padding-inline: 1rem;
+  }
+
+  .nav-links a {
+    font-size: 0.85rem;
+  }
+}
+/* FORMULAIRE — STYLE ORIGINAL NOIR */
+form input,
+form textarea {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(5, 6, 8, 0.9);   /* ← fond noir */
+  color: #f5f5f5;                   /* ← texte blanc */
+  font: inherit;
+}
+
+form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+form input:focus,
+form textarea:focus {
+  outline: 1px solid rgba(250, 204, 107, 0.55);
+  border-color: rgba(250, 204, 107, 0.55);
+}
