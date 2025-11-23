@@ -3,7 +3,7 @@
 import { useState } from "react";
 import AutocompleteInput from "./AutocompleteInput";
 
-export default function ReservationPageEn() {
+export default function ReservationPageFr() {
   const [pickup, setPickup] = useState("");
   const [dropoff, setDropoff] = useState("");
   const [date, setDate] = useState("");
@@ -36,22 +36,20 @@ export default function ReservationPageEn() {
           isSwiss: result.isSwiss,
 
           priceDisplay: `${result.price} ${result.isSwiss ? "CHF" : "EUR"}`,
-
-          // 🔥 LIGNE IMPORTANTE POUR AVOIR LE CANCEL EN ANGLAIS
-          lang: "en",
+          lang: "fr",
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || "Stripe error");
+        alert(data.error || "Erreur Stripe");
         return;
       }
 
       if (data.url) window.location.href = data.url;
     } catch (error) {
-      alert("Connection error with Stripe server.");
+      alert("Erreur de connexion au serveur Stripe.");
       console.error(error);
     }
   }
@@ -77,13 +75,13 @@ export default function ReservationPageEn() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Unexpected error.");
+        setError(data.error || "Erreur inattendue.");
         setResult(null);
       } else {
         setResult(data);
       }
     } catch (err) {
-      setError("Could not reach the server.");
+      setError("Impossible de contacter le serveur.");
       setResult(null);
     } finally {
       setLoading(false);
@@ -93,18 +91,31 @@ export default function ReservationPageEn() {
   const currency = result ? (result.isSwiss ? "CHF" : "€") : "€";
 
   return (
-    <main style={{ maxWidth: "1200px", margin: "40px auto", padding: "0 16px", color: "#fff" }}>
+    <main
+      style={{
+        maxWidth: "1200px",
+        margin: "40px auto",
+        padding: "0 16px",
+        color: "#fff",
+      }}
+    >
       <h1 style={{ fontSize: "32px", fontWeight: 700, marginBottom: 8 }}>
-        Book your private transfer
+        Réserver votre transfert privé
       </h1>
 
       <p style={{ marginBottom: 24 }}>
-        Instant calculation, pricing and automatic Swiss border detection.
+        Calcul automatique de distance, tarification et détection de passage en Suisse.
       </p>
 
-      <div style={{ display: "flex", gap: "32px", flexWrap: "wrap", alignItems: "flex-start" }}>
-
-        {/* LEFT FORM */}
+      <div
+        style={{
+          display: "flex",
+          gap: "32px",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+        }}
+      >
+        {/* FORMULAIRE GAUCHE */}
         <form
           onSubmit={handleCalculate}
           style={{
@@ -115,23 +126,23 @@ export default function ReservationPageEn() {
             boxShadow: "0 0 25px rgba(0,0,0,0.5)",
           }}
         >
-          <h2 style={{ fontSize: 20, marginBottom: 16 }}>Transfer details</h2>
+          <h2 style={{ fontSize: 20, marginBottom: 16 }}>Détails du transfert</h2>
 
           <div style={{ marginBottom: 12 }}>
-            <label>Pick-up address</label>
+            <label>Adresse de départ</label>
             <AutocompleteInput
               value={pickup}
               onChange={(v) => setPickup(v)}
-              placeholder="Type an address..."
+              placeholder="Tapez une adresse..."
             />
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label>Drop-off address</label>
+            <label>Adresse d’arrivée</label>
             <AutocompleteInput
               value={dropoff}
               onChange={(v) => setDropoff(v)}
-              placeholder="Type an address..."
+              placeholder="Tapez une adresse..."
             />
           </div>
 
@@ -153,7 +164,7 @@ export default function ReservationPageEn() {
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label>Time</label>
+            <label>Heure</label>
             <input
               type="time"
               value={time}
@@ -170,7 +181,7 @@ export default function ReservationPageEn() {
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label>Passengers</label>
+            <label>Passagers</label>
             <select
               value={passengers}
               onChange={(e) => setPassengers(Number(e.target.value))}
@@ -185,7 +196,7 @@ export default function ReservationPageEn() {
             >
               {[...Array(8)].map((_, i) => (
                 <option key={i + 1} value={i + 1}>
-                  {i + 1} passenger{i + 1 > 1 ? "s" : ""}
+                  {i + 1} passager{i + 1 > 1 ? "s" : ""}
                 </option>
               ))}
             </select>
@@ -206,13 +217,13 @@ export default function ReservationPageEn() {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? "Calculating..." : "Calculate price"}
+            {loading ? "Calcul en cours..." : "Calculer le prix"}
           </button>
 
           {error && <p style={{ color: "#ff6b6b", marginTop: 12 }}>❌ {error}</p>}
         </form>
 
-        {/* SUMMARY */}
+        {/* RÉSUMÉ */}
         <div
           style={{
             flex: "1 1 380px",
@@ -222,29 +233,30 @@ export default function ReservationPageEn() {
             boxShadow: "0 0 25px rgba(0,0,0,0.5)",
           }}
         >
-          <h2 style={{ fontSize: 20, marginBottom: 16 }}>Summary</h2>
+          <h2 style={{ fontSize: 20, marginBottom: 16 }}>Résumé</h2>
 
           <p>
-            Distance:{" "}
+            Distance estimée :{" "}
             <strong>{result ? `${result.distanceKm.toFixed(1)} km` : "—"}</strong>
           </p>
 
           <p>
-            Duration: <strong>{result ? result.durationText : "—"}</strong>
+            Durée estimée :{" "}
+            <strong>{result ? result.durationText : "—"}</strong>
           </p>
 
           <p>
-            Swiss border:{" "}
-            <strong>{result ? (result.isSwiss ? "Yes 🇨🇭" : "No 🇫🇷") : "—"}</strong>
+            Passage par la Suisse :{" "}
+            <strong>{result ? (result.isSwiss ? "Oui 🇨🇭" : "Non 🇫🇷") : "—"}</strong>
           </p>
 
           <p>
-            Price:{" "}
+            Prix estimé :{" "}
             <strong>{result ? `${result.price} ${currency}` : "—"}</strong>
           </p>
 
-          <p>Date: <strong>{date || "—"}</strong></p>
-          <p style={{ marginBottom: 16 }}>Time: <strong>{time || "—"}</strong></p>
+          <p>Date : <strong>{date || "—"}</strong></p>
+          <p style={{ marginBottom: 16 }}>Heure : <strong>{time || "—"}</strong></p>
 
           <button
             type="button"
@@ -262,11 +274,11 @@ export default function ReservationPageEn() {
               opacity: result ? 1 : 0.5,
             }}
           >
-            Pay & Confirm Booking
+            Payer & Confirmer la réservation
           </button>
 
           <p style={{ fontSize: 12, marginTop: 10, color: "#aaa" }}>
-            Final price may vary depending on tolls or special requests.
+            Le prix final peut varier selon les péages ou demandes spéciales.
           </p>
         </div>
       </div>

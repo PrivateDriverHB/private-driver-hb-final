@@ -5,23 +5,12 @@ import { useEffect, useState, useRef } from "react";
 const GENEVA_AIRPORT = { lat: 46.2381, lng: 6.1089 };
 
 const STATIONS = [
-  { id: "avoriaz", name: "Avoriaz", lat: 46.1912, lng: 6.7756, price: "320 €", distance: "75 km", duration: "1h40",
-    img: "https://images.unsplash.com/photo-1518173946687-a4c889be6ecb?auto=format&fit=crop&w=1500&q=80" },
-
-  { id: "lesgets", name: "Les Gets", lat: 46.1587, lng: 6.6647, price: "300 €", distance: "65 km", duration: "1h20",
-    img: "https://images.unsplash.com/photo-1549893075-4a7a5f76c43b?auto=format&fit=crop&w=1500&q=80" },
-
-  { id: "morzine", name: "Morzine", lat: 46.1792, lng: 6.7085, price: "300 €", distance: "70 km", duration: "1h30",
-    img: "https://images.unsplash.com/photo-1612810806546-6195c2d3bd87?auto=format&fit=crop&w=1500&q=80" },
-
-  { id: "megeve", name: "Megève", lat: 45.8545, lng: 6.6131, price: "340 €", distance: "72 km", duration: "1h25",
-    img: "https://images.unsplash.com/photo-1601134467661-3d5f0d00116a?auto=format&fit=crop&w=1500&q=80" },
-
-  { id: "chamonix", name: "Chamonix – Mont Blanc", lat: 45.9237, lng: 6.8694, price: "320 €", distance: "82 km", duration: "1h15",
-    img: "https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=1500&q=80" },
-
-  { id: "lacluzas", name: "La Clusaz", lat: 45.9045, lng: 6.4234, price: "280 €", distance: "50 km", duration: "1h00",
-    img: "https://images.unsplash.com/photo-1516569422860-0b485f4a8fea?auto=format&fit=crop&w=1500&q=80" },
+  { id: "avoriaz", name: "Avoriaz", lat: 46.1912, lng: 6.7756, price: "320 €", distance: "75 km", duration: "1h40" },
+  { id: "lesgets", name: "Les Gets", lat: 46.1587, lng: 6.6647, price: "300 €", distance: "65 km", duration: "1h20" },
+  { id: "morzine", name: "Morzine", lat: 46.1792, lng: 6.7085, price: "300 €", distance: "70 km", duration: "1h30" },
+  { id: "megeve", name: "Megève", lat: 45.8545, lng: 6.6131, price: "340 €", distance: "72 km", duration: "1h25" },
+  { id: "chamonix", name: "Chamonix – Mont Blanc", lat: 45.9237, lng: 6.8694, price: "320 €", distance: "82 km", duration: "1h15" },
+  { id: "lacluzas", name: "La Clusaz", lat: 45.9045, lng: 6.4234, price: "280 €", distance: "50 km", duration: "1h00" },
 ];
 
 export default function SkiTransfersPageFr() {
@@ -29,11 +18,12 @@ export default function SkiTransfersPageFr() {
   const mapRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
 
-  // ⭐ Google Maps + Directions
+  // Google Maps — Itinéraire Genève -> Station
   useEffect(() => {
     if (!mapRef.current) return;
+
     if (!window.google || !window.google.maps) {
-      setTimeout(() => setMapReady(!mapReady), 300);
+      setTimeout(() => setMapReady((v) => !v), 300);
       return;
     }
 
@@ -44,16 +34,23 @@ export default function SkiTransfersPageFr() {
       center: GENEVA_AIRPORT,
       zoom: 8,
       styles: [
-        { elementType: "geometry", stylers: [{ color: "#1f1f1f" }] },
-        { elementType: "labels.text.fill", stylers: [{ color: "#f5c451" }] },
+        { elementType: "geometry", stylers: [{ color: "#0b0b0b" }] },
+        { elementType: "labels.text.fill", stylers: [{ color: "#ffffff" }] },
+        { elementType: "labels.text.stroke", stylers: [{ color: "#000000" }] },
+        { featureType: "road", elementType: "geometry", stylers: [{ color: "#2f2f2f" }] },
+        { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#f5c451" }] },
+        { featureType: "water", elementType: "geometry", stylers: [{ color: "#1a1a1a" }] },
+        { featureType: "poi.park", elementType: "geometry.fill", stylers: [{ color: "#18200e" }] },
       ],
       streetViewControl: false,
+      mapTypeControl: true,
     });
 
     const directionsService = new google.maps.DirectionsService();
     const directionsRenderer = new google.maps.DirectionsRenderer({
       map,
       polylineOptions: { strokeColor: "#f5c451", strokeWeight: 5 },
+      suppressMarkers: false,
     });
 
     directionsService.route(
@@ -63,7 +60,13 @@ export default function SkiTransfersPageFr() {
         travelMode: google.maps.TravelMode.DRIVING,
       },
       (result, status) => {
-        if (status === "OK") directionsRenderer.setDirections(result);
+        if (status === "OK") {
+          directionsRenderer.setDirections(result);
+          const bounds = new google.maps.LatLngBounds();
+          bounds.extend(GENEVA_AIRPORT);
+          bounds.extend({ lat: station.lat, lng: station.lng });
+          map.fitBounds(bounds);
+        }
       }
     );
   }, [selectedId, mapReady]);
@@ -72,81 +75,21 @@ export default function SkiTransfersPageFr() {
 
   return (
     <main style={{ color: "#fff" }}>
-
       {/* HERO */}
       <section
         style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1516569422860-0b485f4a8fea?auto=format&fit=crop&w=1500&q=80')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          background: "linear-gradient(90deg, #0b0b0b, #1a1a1a)",
           padding: "150px 20px",
           textAlign: "center",
-          position: "relative",
         }}
       >
-        <div style={{
-          position: "absolute",
-          inset: 0,
-          background: "rgba(0,0,0,0.55)"
-        }} />
-
-        <div style={{ position: "relative", zIndex: 10 }}>
-          <h1 style={{ fontSize: "42px", fontWeight: 700 }}>
-            ❄️ Transferts vers les Stations de Ski
-          </h1>
-          <p style={{ fontSize: "18px", marginTop: "10px", opacity: 0.9 }}>
-            Chauffeur privé premium depuis Genève Aéroport —
-            service fiable, confortable et adapté aux routes de montagne.
-          </p>
-        </div>
-      </section>
-
-      {/* SLIDER STATIONS */}
-      <section
-        style={{
-          overflowX: "auto",
-          whiteSpace: "nowrap",
-          padding: "25px 10px",
-          margin: "20px 0",
-        }}
-      >
-        {STATIONS.map((station) => (
-          <div
-            key={station.id}
-            onClick={() => setSelectedId(station.id)}
-            style={{
-              display: "inline-block",
-              marginRight: "12px",
-              width: "260px",
-              height: "160px",
-              borderRadius: "12px",
-              overflow: "hidden",
-              border: station.id === selectedId ? "3px solid #f5c451" : "1px solid #333",
-              cursor: "pointer",
-              position: "relative",
-            }}
-          >
-            <img
-              src={station.img}
-              alt={station.name}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                width: "100%",
-                background: "rgba(0,0,0,0.6)",
-                padding: "6px 0",
-                textAlign: "center",
-              }}
-            >
-              {station.name}
-            </div>
-          </div>
-        ))}
+        <h1 style={{ fontSize: "42px", fontWeight: 700 }}>
+          ❄️ Transferts vers les Stations de Ski depuis Genève Aéroport
+        </h1>
+        <p style={{ fontSize: "18px", marginTop: "10px", opacity: 0.9 }}>
+          Chauffeur privé premium pour vos transferts vers Avoriaz, Morzine, Megève, Chamonix, Les Gets et La Clusaz —
+          service haut de gamme et ponctuel.
+        </p>
       </section>
 
       {/* LISTE + MAP */}
@@ -170,7 +113,7 @@ export default function SkiTransfersPageFr() {
           }}
         >
           <h2 style={{ fontSize: "26px" }}>🎿 Stations desservies</h2>
-          <p style={{ opacity: 0.8 }}>Depuis Genève Aéroport</p>
+          <p style={{ opacity: 0.8 }}>Départs depuis Genève Aéroport (GVA)</p>
 
           <ul style={{ listStyle: "none", padding: 0, marginTop: "15px" }}>
             {STATIONS.map((s) => (
@@ -183,7 +126,10 @@ export default function SkiTransfersPageFr() {
                   borderRadius: "10px",
                   backgroundColor:
                     s.id === selectedId ? "#2b220f" : "rgba(0,0,0,0.4)",
-                  border: s.id === selectedId ? "1px solid #f5c451" : "1px solid #333",
+                  border:
+                    s.id === selectedId
+                      ? "1px solid #f5c451"
+                      : "1px solid #333",
                   cursor: "pointer",
                   display: "flex",
                   justifyContent: "space-between",
@@ -205,7 +151,7 @@ export default function SkiTransfersPageFr() {
           </ul>
         </div>
 
-        {/* MAP */}
+        {/* MAP + DESCRIPTION */}
         <div
           style={{
             flex: "1 1 55%",
@@ -217,23 +163,46 @@ export default function SkiTransfersPageFr() {
           <h2 style={{ fontSize: "24px" }}>
             🗺️ Itinéraire : Genève → {selectedStation?.name}
           </h2>
-
           <div
             ref={mapRef}
             style={{
               width: "100%",
-              height: "380px",
+              height: "400px",
               borderRadius: "12px",
               border: "1px solid #333",
               marginTop: "12px",
             }}
           />
+
+          {/* BLOC PREMIUM */}
+          <div
+            style={{
+              marginTop: "20px",
+              background: "rgba(245,196,81,0.1)",
+              padding: "18px 20px",
+              borderRadius: "10px",
+              lineHeight: 1.7,
+              textAlign: "center",
+            }}
+          >
+            <p style={{ fontSize: "17px", maxWidth: "650px", margin: "0 auto" }}>
+              Idéal pour un <strong>voyage en solo</strong>, en <strong>couple</strong> ou en
+              <strong> petite famille (jusqu’à 4 personnes)</strong>. 
+              Profitez d’un trajet confortable à bord de notre <strong>Audi Avant</strong>,
+              alliant élégance, sécurité et discrétion pour vos transferts privés
+              vers les stations de ski depuis <strong>Genève Aéroport</strong>.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* POURQUOI CHOISIR */}
+      {/* POURQUOI NOUS CHOISIR */}
       <section
-        style={{ padding: "30px 20px 50px", maxWidth: "1200px", margin: "0 auto" }}
+        style={{
+          padding: "10px 20px 50px",
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
       >
         <div
           style={{
@@ -247,12 +216,12 @@ export default function SkiTransfersPageFr() {
           </h2>
 
           <ul style={{ marginTop: "12px", lineHeight: 1.8 }}>
-            <li>Chauffeur habitué aux routes enneigées</li>
-            <li>Berline confortable — pneus neige</li>
-            <li>Suivi de vol + accueil personnalisé</li>
-            <li>Aide bagages & matériel ski</li>
-            <li>Transfert privé 24/7</li>
-            <li>Paiement sécurisé</li>
+            <li>Chauffeurs expérimentés habitués aux routes enneigées</li>
+            <li>Véhicules confortables et équipés de pneus neige</li>
+            <li>Accueil personnalisé à Genève Aéroport</li>
+            <li>Aide aux bagages et matériel de ski</li>
+            <li>Transferts privés disponibles 24/7</li>
+            <li>Paiement sécurisé en ligne</li>
           </ul>
         </div>
 
@@ -266,6 +235,7 @@ export default function SkiTransfersPageFr() {
               color: "#000",
               fontWeight: 600,
               marginRight: "10px",
+              textDecoration: "none",
             }}
           >
             🚗 Réserver un transfert ski
@@ -280,6 +250,7 @@ export default function SkiTransfersPageFr() {
               background: "#25D366",
               color: "#000",
               fontWeight: 600,
+              textDecoration: "none",
             }}
           >
             💬 WhatsApp
