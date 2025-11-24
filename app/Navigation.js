@@ -26,7 +26,6 @@ export default function Navigation() {
 
         {/* NAVIGATION DESKTOP */}
         <nav className="nav-links">
-          {/* Sélecteur de langue FR / EN */}
           <div className="lang-switch" style={{ display: "flex", gap: "8px" }}>
             <a
               href="/fr"
@@ -88,7 +87,7 @@ export default function Navigation() {
         {/* Téléphone desktop */}
         <div className="nav-phone">+33 7 66 44 12 70</div>
 
-        {/* Menu mobile */}
+        {/* MENU MOBILE - Trois lignes dorées */}
         <button
           className={`nav-mobile-toggle ${menuOpen ? "open" : ""}`}
           onClick={() => setMenuOpen(!menuOpen)}
@@ -96,54 +95,44 @@ export default function Navigation() {
         >
           <span />
           <span />
+          <span />
         </button>
       </div>
 
-      {/* MENU MOBILE OVERLAY */}
-      <div className={`mobile-menu-overlay ${menuOpen ? "open" : ""}`}>
-        <div className="mobile-menu-panel">
-          <div className="mobile-menu-header">
-            <div className="brand">PRIVATE DRIVER HB</div>
-            <button
-              className={`nav-mobile-toggle ${menuOpen ? "open" : ""}`}
-              onClick={() => setMenuOpen(false)}
-              aria-label="Fermer le menu"
-            >
-              <span />
-              <span />
-            </button>
-          </div>
+      {/* MENU LATÉRAL MOBILE */}
+      <div className={`mobile-sidebar ${menuOpen ? "open" : ""}`}>
+        <div className="sidebar-content">
+          <button
+            className="close-btn"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Fermer le menu"
+          >
+            ✕
+          </button>
 
-          <div className="mobile-menu-body">
-            {/* Sélecteur de langue mobile */}
-            <div
+          {/* Sélecteur langue */}
+          <div className="lang-switch-mobile">
+            <a
+              href="/fr"
               style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "12px",
-                marginBottom: "15px",
+                color: lang === "fr" ? "#f5c451" : "#fff",
+                textDecoration: "none",
               }}
             >
-              <a
-                href="/fr"
-                style={{
-                  color: lang === "fr" ? "#f5c451" : "#fff",
-                  textDecoration: "none",
-                }}
-              >
-                FR
-              </a>
-              <a
-                href="/en"
-                style={{
-                  color: lang === "en" ? "#f5c451" : "#fff",
-                  textDecoration: "none",
-                }}
-              >
-                EN
-              </a>
-            </div>
+              FR
+            </a>
+            <a
+              href="/en"
+              style={{
+                color: lang === "en" ? "#f5c451" : "#fff",
+                textDecoration: "none",
+              }}
+            >
+              EN
+            </a>
+          </div>
 
+          <nav className="sidebar-links">
             <a
               href={`/${lang}`}
               className={isActive(`/${lang}`) ? "active" : ""}
@@ -155,7 +144,9 @@ export default function Navigation() {
             <a
               href={lang === "fr" ? "/fr/tarifs" : "/en/prices"}
               className={
-                isActive("/fr/tarifs") || isActive("/en/prices") ? "active" : ""
+                isActive("/fr/tarifs") || isActive("/en/prices")
+                  ? "active"
+                  : ""
               }
               onClick={() => setMenuOpen(false)}
             >
@@ -185,10 +176,12 @@ export default function Navigation() {
             >
               Contact
             </a>
-          </div>
+          </nav>
 
-          <div className="mobile-menu-footer">
-            <a href="tel:+33766441270">+33 7 66 44 12 70</a>
+          <div className="sidebar-footer">
+            <a href="tel:+33766441270" className="phone-link">
+              📞 +33 7 66 44 12 70
+            </a>
           </div>
         </div>
       </div>

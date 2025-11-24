@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resendApiKey = process.env.RESEND_API_KEY || "";
+const resendApiKey = process.env.RESEND_API_KEY;
 const contactTo = process.env.CONTACT_EMAIL_TO || "bhubervtc@gmail.com";
+
+let resend = null;
+
+// ✅ Empêche le crash lors du build sans clé
+if (resendApiKey) {
+  resend = new Resend(resendApiKey);
+} else {
+  console.warn("⚠️ RESEND_API_KEY is missing — emails will not be sent during build.");
+}
 
 export async function POST(request) {
   try {
@@ -16,9 +25,9 @@ export async function POST(request) {
       );
     }
 
-    if (!resendApiKey) {
-      // Mode développement : ne pas appeler l'API, seulement log
-      console.log("Resend API key manquante. Message reçu :", {
+    // ✅ Si la clé manque, on évite de lancer une erreur fatale
+    if (!resend) {
+      console.log("📭 Email service disabled. Simulated contact message:", {
         name,
         email,
         phone,
@@ -27,8 +36,7 @@ export async function POST(request) {
       return NextResponse.json({ ok: true, simulated: true });
     }
 
-    const resend = new Resend(resendApiKey);
-
+    // ✅ Envoi réel de l'email
     await resend.emails.send({
       from: "Private Driver HB <noreply@privatedriverhb.com>",
       to: contactTo,
@@ -47,7 +55,7 @@ export async function POST(request) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Contact API error", err);
+    console.error("❌ Contact API error:", err);
     return NextResponse.json(
       { error: "Failed to send message" },
       { status: 500 }
