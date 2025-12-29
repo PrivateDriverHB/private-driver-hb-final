@@ -1,17 +1,30 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function SuccessPageFr() {
+function SuccessPageFrInner() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
 
   const sentRef = useRef(false);
-
   const [status, setStatus] = useState("loading"); // loading | ok | error
   const [amount, setAmount] = useState(null);
   const [currency, setCurrency] = useState(null);
+
+  // helpers safe storage (certain browsers can block it)
+  const safeGet = (key) => {
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+  const safeSet = (key, value) => {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {}
+  };
 
   useEffect(() => {
     if (!sessionId) {
@@ -19,12 +32,11 @@ export default function SuccessPageFr() {
       return;
     }
 
-    const guardKey = `success_done_${sessionId}`;
-    if (sentRef.current || sessionStorage.getItem(guardKey) === "1") return;
+    const guardKey = `ads_conv_sent_${sessionId}`;
+    if (sentRef.current || safeGet(guardKey) === "1") return;
 
     const run = async () => {
       try {
-        // 1) Récupère la session Stripe côté serveur
         const res = await fetch("/api/get-session-info", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -35,32 +47,13 @@ export default function SuccessPageFr() {
         if (!res.ok) throw new Error(data?.error || "Erreur get-session-info");
 
         const amountTotal = Number(data.amount_total); // cents
-        const curr = String(data.currency || "eur").toUpperCase(); // "EUR" / "CHF"
+        const curr = String(data.currency || "eur").toUpperCase();
         const value = Number.isFinite(amountTotal) ? amountTotal / 100 : 0;
 
         setAmount(value);
         setCurrency(curr);
 
-        // 2) Envoi email automatique (client + chauffeur)
-        const customerEmail = data.customer_email || null;
-        if (customerEmail) {
-          // anti-double côté client pour l’email
-          const emailKey = `email_sent_${sessionId}`;
-          if (sessionStorage.getItem(emailKey) !== "1") {
-            await fetch("/api/send-email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sessionId, to: customerEmail }),
-            });
-            sessionStorage.setItem(emailKey, "1");
-          }
-        }
-
-        // 3) Google Ads conversion (retry limité)
-        const convKey = `ads_conv_sent_${sessionId}`;
         const sendConversion = () => {
-          if (sessionStorage.getItem(convKey) === "1") return true;
-
           if (typeof window !== "undefined" && typeof window.gtag === "function") {
             window.gtag("event", "conversion", {
               send_to: "AW-17756859164/wRSFCKHTl8cbEJzWkJNC",
@@ -68,26 +61,27 @@ export default function SuccessPageFr() {
               currency: curr,
               transaction_id: sessionId,
             });
-            sessionStorage.setItem(convKey, "1");
+
+            sentRef.current = true;
+            safeSet(guardKey, "1");
+            setStatus("ok");
             return true;
           }
           return false;
         };
 
-        if (!sendConversion()) {
-          let tries = 0;
-          const timer = setInterval(() => {
-            tries += 1;
-            if (sendConversion() || tries >= 8) clearInterval(timer);
-          }, 500);
-        }
+        if (sendConversion()) return;
 
-        // fini
-        sentRef.current = true;
-        sessionStorage.setItem(guardKey, "1");
-        setStatus("ok");
+        let tries = 0;
+        const timer = setInterval(() => {
+          tries += 1;
+          if (sendConversion() || tries >= 8) {
+            clearInterval(timer);
+            setStatus("ok"); // on affiche ok même si gtag absent
+          }
+        }, 500);
       } catch (e) {
-        console.error("❌ SuccessPage error:", e);
+        console.error("❌ SuccessPage conversion error:", e);
         setStatus("error");
       }
     };
@@ -121,12 +115,6 @@ export default function SuccessPageFr() {
         </p>
       )}
 
-      {status === "error" && (
-        <p style={{ fontSize: "0.95rem", opacity: 0.85, color: "#fca5a5" }}>
-          Une erreur est survenue (session ou email). Le paiement est peut-être validé côté Stripe.
-        </p>
-      )}
-
       <a
         href="/fr"
         style={{
@@ -144,5 +132,13 @@ export default function SuccessPageFr() {
         Retour à l’accueil
       </a>
     </main>
+  );
+}
+
+export default function SuccessPageFr() {
+  return (
+    <Suspense fallback={<div style={{ color: "#fff", padding: 40, textAlign: "center" }}>Chargement…</div>}>
+      <SuccessPageFrInner />
+    </Suspense>
   );
 }
