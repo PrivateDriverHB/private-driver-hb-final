@@ -1,4 +1,16 @@
+"use client";
+
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+
 export default function CancelFR() {
+  const searchParams = useSearchParams();
+
+  const cid = useMemo(() => {
+    const v = searchParams.get("cid");
+    return v ? decodeURIComponent(v) : "";
+  }, [searchParams]);
+
   return (
     <main
       style={{
@@ -9,16 +21,46 @@ export default function CancelFR() {
         color: "#fff",
       }}
     >
-      <h1 style={{ fontSize: 32, marginBottom: 16 }}>❌ Paiement annulé</h1>
+      <h1 style={{ fontSize: 32, marginBottom: 14 }}>❌ Paiement annulé</h1>
 
-      <p style={{ fontSize: 18, marginBottom: 16 }}>
-        Votre paiement n’a pas été finalisé.<br />
+      <p style={{ fontSize: 18, marginBottom: 14, opacity: 0.9 }}>
+        Votre paiement n’a pas été finalisé.
+        <br />
         Aucune réservation n’a été enregistrée.
       </p>
 
-      <p style={{ marginBottom: 24 }}>
-        Vous pouvez retourner à la réservation et réessayer à tout moment.
-      </p>
+      {cid && (
+        <p style={{ marginBottom: 18, fontSize: 14, opacity: 0.85 }}>
+          Référence : <strong style={{ color: "#f5c451" }}>{cid}</strong>
+        </p>
+      )}
+
+      <div
+        style={{
+          margin: "0 auto 24px",
+          maxWidth: 560,
+          background: "#111",
+          border: "1px solid #2a2a2a",
+          borderRadius: 12,
+          padding: "14px 16px",
+          textAlign: "left",
+          opacity: 0.95,
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+          Vous pouvez retourner à la réservation et réessayer à tout moment.
+          <br />
+          <span style={{ opacity: 0.85 }}>
+            Si vous pensez avoir été débité, contactez-nous :{" "}
+            <a
+              href="mailto:booking@privatedriverhb.com"
+              style={{ color: "#f5c451", textDecoration: "none" }}
+            >
+              booking@privatedriverhb.com
+            </a>
+          </span>
+        </p>
+      </div>
 
       <a
         href="/fr/reservation"
@@ -28,10 +70,9 @@ export default function CancelFR() {
           borderRadius: 999,
           background: "linear-gradient(90deg, #d4a019, #f5c451)",
           color: "#000",
-          fontWeight: 600,
+          fontWeight: 700,
           textDecoration: "none",
-          marginBottom: "16px",
-          transition: "0.2s",
+          marginBottom: "14px",
         }}
       >
         Revenir à la réservation
@@ -45,11 +86,11 @@ export default function CancelFR() {
           display: "inline-block",
           padding: "12px 20px",
           borderRadius: 999,
-          background: "#555",
+          background: "#333",
           color: "#fff",
           fontWeight: 600,
           textDecoration: "none",
-          transition: "0.2s",
+          border: "1px solid #444",
         }}
       >
         Retour à l’accueil

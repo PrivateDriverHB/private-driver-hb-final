@@ -1,5 +1,6 @@
 import "./globals.css";
 import Navigation from "./Navigation";
+import GoogleScripts from "./GoogleScripts";
 import Script from "next/script";
 
 export const metadata = {
@@ -12,34 +13,33 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fr">
       <head>
-        {/* ✅ Script Google Maps complet avec librairie 'places', langue FR et région FR */}
-        <Script
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&language=fr&region=FR`}
-          strategy="beforeInteractive"
-        />
+        {/* ✅ Balises META Google (optionnel si tu veux ajouter la Search Console plus tard) */}
       </head>
 
-      <body>
-        {/* Navigation principale */}
+      <body className="bg-black text-white">
         <Navigation />
 
-        {/* Contenu principal */}
-        <main className="page-transition">{children}</main>
+        {/* ✅ Contenu principal */}
+        {children}
 
-        {/* Footer */}
-        <footer>
-          © {new Date().getFullYear()} Private Driver HB — Chauffeur privé / VTC
-        </footer>
+        {/* ✅ Scripts globaux (Google Ads + Maps) exécutés partout */}
+        <GoogleScripts />
 
-        {/* Bouton WhatsApp */}
-        <a
-          href="https://wa.me/33766441270"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="whatsapp-btn"
-        >
-          💬
-        </a>
+        {/* ✅ Sécurité supplémentaire (tag direct dans le head) */}
+        <Script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17756859164"
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-17756859164');
+            console.log("✅ Google Ads tag initialisé (gtag-init)");
+          `}
+        </Script>
       </body>
     </html>
   );

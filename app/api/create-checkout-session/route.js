@@ -26,6 +26,42 @@ function buildDescription(pickup, dropoff, date, time) {
   return parts.length ? parts.join(" ") : "Réservation Private Driver HB";
 }
 
+function validateCapacity({ passengers, luggageType, luggageCount }) {
+  const p = Number(passengers ?? 1);
+  const lc = Number(luggageCount ?? 0);
+  const lt = luggageType === "large" ? "large" : "medium";
+
+  if (Number.isNaN(p) || p < 1) return "Nombre de passagers invalide.";
+  if (p > 4) return "Capacité dépassée : maximum 4 passagers (Audi A4 Avant).";
+
+  if (Number.isNaN(lc) || lc < 0) return "Nombre de bagages invalide.";
+
+  if (lt === "large") {
+    if (p === 4)
+      return "Avec 4 passagers, grands bagages non acceptés (choisir moyen/cabine).";
+    if (lc > 3) return "Maximum 3 grands bagages (Audi A4 Avant).";
+  } else {
+    if (lc > 4) return "Maximum 4 bagages moyen/cabine (Audi A4 Avant).";
+  }
+
+  return null;
+}
+
+/**
+ * Origin robuste (localhost + Vercel + reverse proxy)
+ */
+function getOrigin(request) {
+  const originHeader = request.headers.get("origin");
+  if (originHeader) return originHeader;
+
+  const proto = request.headers.get("x-forwarded-proto") || "http";
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+
+  if (host) return `${proto}://${host}`;
+
+  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+}
+
 export async function POST(request) {
   try {
     if (!stripeSecretKey) {
@@ -35,14 +71,23 @@ export async function POST(request) {
       );
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2024-06-20",
-    });
+    // 🔒 SÉCURITÉ : interdire LIVE sur localhost
+    const originHeader = request.headers.get("origin") || "";
+    if (stripeSecretKey.startsWith("sk_live_") && originHeader.includes("localhost")) {
+      return NextResponse.json(
+        {
+          error:
+            "Sécurité: clé Stripe LIVE détectée sur localhost. Pour tester, utilise une clé sk_test_.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
 
     const body = await request.json();
-
     const {
-      amount,
+      amount, // attendu en CENTIMES
       currency,
       pickup,
       dropoff,
@@ -53,25 +98,51 @@ export async function POST(request) {
       durationText,
       isSwiss,
       priceDisplay,
-      lang, // 🔥 On récupère la langue
+      lang,
+
+      luggageType,
+      luggageCount,
+      pickupPlaceId,
+      dropoffPlaceId,
+      pickupCountry,
+      dropoffCountry,
+
+      // optionnel si tu l’as côté front :
+      customerEmail,
     } = body || {};
 
-    // 🔥 Langue par défaut
     const currentLang = lang === "en" ? "en" : "fr";
 
-    if (!amount || amount < 1) {
+    // ✅ Montant : en centimes, entier
+    const amountInt = Number(amount);
+    if (!Number.isFinite(amountInt) || amountInt < 50) {
+      // 50 centimes min (évite les 0, 1, etc.)
       return NextResponse.json(
-        { error: "Montant de paiement invalide." },
+        { error: "Montant de paiement invalide (centimes)." },
         { status: 400 }
       );
     }
 
     if (!pickup || !dropoff) {
       return NextResponse.json(
-        { error: "Adresse départ/arrivée manquante." },
+        { error: "Adresse départ ou arrivée manquante." },
         { status: 400 }
       );
     }
+
+    // 🔐 Obliger sélection Google (place_id)
+    if (!pickupPlaceId || !dropoffPlaceId) {
+      return NextResponse.json(
+        {
+          error:
+            "Merci de sélectionner les adresses dans la liste Google (pas seulement les taper).",
+        },
+        { status: 400 }
+      );
+    }
+
+    const capacityError = validateCapacity({ passengers, luggageType, luggageCount });
+    if (capacityError) return NextResponse.json({ error: capacityError }, { status: 400 });
 
     const finalCurrency =
       typeof currency === "string" && currency.length === 3
@@ -83,29 +154,55 @@ export async function POST(request) {
     const courseId = generateCourseId();
     const encodedCourseId = encodeURIComponent(courseId);
 
-    const origin =
-      request.headers.get("origin") ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+    const origin = getOrigin(request);
 
-    // --------------------------------------
-    // 🔥 SUCCESS + CANCEL dynamiques en FR/EN
-    // --------------------------------------
     const successUrl = `${origin}/${currentLang}/reservation/success?session_id={CHECKOUT_SESSION_ID}&cid=${encodedCourseId}`;
     const cancelUrl = `${origin}/${currentLang}/reservation/cancel?cid=${encodedCourseId}`;
+
+    // ✅ Metadata (évite null/undefined)
+    const metadata = {
+      course_id: courseId,
+      pickup: String(pickup || ""),
+      dropoff: String(dropoff || ""),
+      pickup_place_id: String(pickupPlaceId || ""),
+      dropoff_place_id: String(dropoffPlaceId || ""),
+      pickup_country: String(pickupCountry || ""),
+      dropoff_country: String(dropoffCountry || ""),
+      date: String(date || ""),
+      time: String(time || ""),
+      passengers: String(passengers ?? ""),
+      luggage_type: String(luggageType || ""),
+      luggage_count: String(luggageCount ?? ""),
+      distance_km: distanceKm != null ? String(Number(distanceKm).toFixed(1)) : "",
+      duration_text: String(durationText || ""),
+      is_swiss: isSwiss ? "true" : "false",
+      currency: String(finalCurrency),
+      amount_charged: String(amountInt),
+      price_display: String(priceDisplay || ""),
+      lang: String(currentLang),
+    };
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+
+      // ✅ super pratique pour retrouver la réservation
+      client_reference_id: courseId,
+
+      // ✅ utile si tu as l’email au moment du paiement (sinon Stripe le demandera)
+      ...(customerEmail ? { customer_email: customerEmail } : {}),
 
       line_items: [
         {
           quantity: 1,
           price_data: {
             currency: finalCurrency,
-            unit_amount: Math.round(amount),
+            unit_amount: Math.round(amountInt), // centimes
             product_data: {
-              name: "Réservation trajet — Private Driver HB",
+              name:
+                currentLang === "en"
+                  ? "Transfer booking — Private Driver HB"
+                  : "Réservation trajet — Private Driver HB",
               description: buildDescription(pickup, dropoff, date, time),
             },
           },
@@ -115,29 +212,23 @@ export async function POST(request) {
       success_url: successUrl,
       cancel_url: cancelUrl,
 
-      metadata: {
-        course_id: courseId,
-        pickup: pickup || "",
-        dropoff: dropoff || "",
-        date: date || "",
-        time: time || "",
-        passengers: passengers ? String(passengers) : "",
-        distance_km:
-          distanceKm != null ? String(Number(distanceKm).toFixed(1)) : "",
-        duration_text: durationText || "",
-        is_swiss: isSwiss ? "true" : "false",
-        currency: finalCurrency,
-        amount_charged: String(amount),
-        price_display: priceDisplay || "",
-        lang: currentLang,
-      },
+      // ✅ locale Stripe
+      locale: currentLang,
+
+      // ✅ metadata sur la session + sur le payment_intent (important pour webhook)
+      metadata,
+      payment_intent_data: { metadata },
     });
 
-    return NextResponse.json({ url: session.url, courseId });
+    return NextResponse.json({
+      url: session.url,
+      courseId,
+      sessionId: session.id,
+    });
   } catch (err) {
     console.error("🔥 [create-checkout-session] ERROR :", err);
     return NextResponse.json(
-      { error: "Erreur Stripe : " + err.message },
+      { error: "Erreur Stripe : " + (err?.message || "inconnue") },
       { status: 500 }
     );
   }

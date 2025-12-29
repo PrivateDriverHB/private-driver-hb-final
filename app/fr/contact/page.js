@@ -1,4 +1,43 @@
+"use client";
+
+import { useState } from "react";
+
 export default function ContactPageFR() {
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+
+    const form = e.target;
+    const data = {
+      name: form.name.value,
+      email: form.email.value,
+      phone: form.phone?.value || "",
+      message: form.message.value,
+    };
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        alert("✅ Message envoyé avec succès !");
+        form.reset();
+      } else {
+        alert("❌ Une erreur est survenue. Merci de réessayer.");
+      }
+    } catch (error) {
+      console.error("Erreur lors de l’envoi :", error);
+      alert("⚠️ Erreur de connexion au serveur. Merci de réessayer.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main
       style={{
@@ -15,7 +54,8 @@ export default function ContactPageFR() {
       <p style={{ fontSize: "17px", opacity: 0.85, marginBottom: 25 }}>
         Pour toute demande de transfert, question urgente ou réservation spéciale,
         n'hésitez pas à me contacter. Je réponds rapidement et reste disponible
-        24h/24 et 7j/7 pour les réservations depuis Genève, Lyon, Annecy et les stations de ski.
+        24h/24 et 7j/7 pour les réservations depuis Genève, Lyon, Annecy et les
+        stations de ski.
       </p>
 
       {/* CARTES INFO */}
@@ -63,7 +103,11 @@ export default function ContactPageFR() {
               href="https://wa.me/33766441270?text=Bonjour%2C%20je%20souhaite%20réserver%20un%20transfert."
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: "#25D366", fontWeight: 600, textDecoration: "none" }}
+              style={{
+                color: "#25D366",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               Discuter sur WhatsApp
             </a>
@@ -82,10 +126,10 @@ export default function ContactPageFR() {
           <h3 style={{ fontSize: "20px", marginBottom: "8px" }}>📧 E-mail</h3>
           <p>
             <a
-              href="mailto:bhubervtc@gmail.com"
+              href="mailto:booking@privatedriverhb.com"
               style={{ color: "#f5c451", textDecoration: "none" }}
             >
-              bhubervtc@gmail.com
+              booking@privatedriverhb.com
             </a>
           </p>
         </div>
@@ -99,11 +143,15 @@ export default function ContactPageFR() {
             border: "1px solid #333",
           }}
         >
-          <h3 style={{ fontSize: "20px", marginBottom: "8px" }}>📍 Zones de service</h3>
+          <h3 style={{ fontSize: "20px", marginBottom: "8px" }}>
+            📍 Zones de service
+          </h3>
           <p style={{ opacity: 0.8 }}>
-            Aéroport de Genève (GVA)  
-            <br />Lyon • Annecy • Chamonix • Avoriaz • Morzine  
-            <br />Transferts aéroport & stations de ski
+            Aéroport de Genève (GVA)
+            <br />
+            Lyon • Annecy • Chamonix • Avoriaz • Morzine
+            <br />
+            Transferts aéroport & stations de ski
           </p>
         </div>
       </div>
@@ -122,14 +170,9 @@ export default function ContactPageFR() {
         </h2>
 
         <form
-          action="https://formsubmit.co/bhubervtc@gmail.com"
-          method="POST"
+          onSubmit={handleSubmit}
           style={{ display: "grid", gap: "15px", marginTop: "20px" }}
         >
-          {/* Anti-spam */}
-          <input type="hidden" name="_captcha" value="false" />
-          <input type="hidden" name="_subject" value="Nouveau message FR — Private Driver HB" />
-
           <input
             required
             name="name"
@@ -157,6 +200,19 @@ export default function ContactPageFR() {
             }}
           />
 
+          <input
+            name="phone"
+            type="tel"
+            placeholder="Votre téléphone (optionnel)"
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid #333",
+              background: "#000",
+              color: "#fff",
+            }}
+          />
+
           <textarea
             required
             name="message"
@@ -173,6 +229,7 @@ export default function ContactPageFR() {
 
           <button
             type="submit"
+            disabled={loading}
             style={{
               padding: "14px 22px",
               borderRadius: "999px",
@@ -182,9 +239,10 @@ export default function ContactPageFR() {
               border: "none",
               cursor: "pointer",
               marginTop: "10px",
+              opacity: loading ? 0.7 : 1,
             }}
           >
-            Envoyer le message
+            {loading ? "Envoi en cours..." : "Envoyer le message"}
           </button>
         </form>
       </section>

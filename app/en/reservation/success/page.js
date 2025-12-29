@@ -1,132 +1,144 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-let EMAIL_SENT_FLAG = false; // Prevent double-send (Strict Mode)
+export default function SuccessPageEn() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session_id");
 
-export default function SuccessPageEN({ searchParams }) {
-  const sessionId = searchParams?.session_id || null;
-  const cid = searchParams?.cid || null;
+  const sentRef = useRef(false);
 
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading | ok | error
+  const [amount, setAmount] = useState(null);
+  const [currency, setCurrency] = useState(null);
 
-  // 1️⃣ Fetch session info from Stripe
   useEffect(() => {
-    if (!sessionId) return;
-
-    async function load() {
-      try {
-        const res = await fetch(`/api/stripe-session?session_id=${sessionId}`);
-        const json = await res.json();
-
-        if (!res.ok) {
-          setError("Failed to retrieve Stripe information.");
-          return;
-        }
-
-        setData(json);
-
-        // 2️⃣ Send emails automatically
-        sendEmails(json);
-      } catch (e) {
-        setError("Error fetching session.");
-      }
+    if (!sessionId) {
+      setStatus("error");
+      return;
     }
 
-    load();
+    const guardKey = `success_done_${sessionId}`;
+    if (sentRef.current || sessionStorage.getItem(guardKey) === "1") return;
+
+    const run = async () => {
+      try {
+        const res = await fetch("/api/get-session-info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "get-session-info failed");
+
+        const amountTotal = Number(data.amount_total);
+        const curr = String(data.currency || "eur").toUpperCase();
+        const value = Number.isFinite(amountTotal) ? amountTotal / 100 : 0;
+
+        setAmount(value);
+        setCurrency(curr);
+
+        // Auto email (client + owner)
+        const customerEmail = data.customer_email || null;
+        if (customerEmail) {
+          const emailKey = `email_sent_${sessionId}`;
+          if (sessionStorage.getItem(emailKey) !== "1") {
+            await fetch("/api/send-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId, to: customerEmail }),
+            });
+            sessionStorage.setItem(emailKey, "1");
+          }
+        }
+
+        // Google Ads conversion
+        const convKey = `ads_conv_sent_${sessionId}`;
+        const sendConversion = () => {
+          if (sessionStorage.getItem(convKey) === "1") return true;
+
+          if (typeof window !== "undefined" && typeof window.gtag === "function") {
+            window.gtag("event", "conversion", {
+              send_to: "AW-17756859164/wRSFCKHTl8cbEJzWkJNC",
+              value: Math.round(value * 100) / 100,
+              currency: curr,
+              transaction_id: sessionId,
+            });
+            sessionStorage.setItem(convKey, "1");
+            return true;
+          }
+          return false;
+        };
+
+        if (!sendConversion()) {
+          let tries = 0;
+          const timer = setInterval(() => {
+            tries += 1;
+            if (sendConversion() || tries >= 8) clearInterval(timer);
+          }, 500);
+        }
+
+        sentRef.current = true;
+        sessionStorage.setItem(guardKey, "1");
+        setStatus("ok");
+      } catch (e) {
+        console.error("❌ SuccessPage error:", e);
+        setStatus("error");
+      }
+    };
+
+    run();
   }, [sessionId]);
 
-  // 2️⃣ Automatic emails
-  async function sendEmails(json) {
-    if (EMAIL_SENT_FLAG) return;
-    EMAIL_SENT_FLAG = true;
-
-    await fetch("/api/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: json.customer_details.email,
-        courseId: cid,
-        pickup: json.metadata.pickup,
-        dropoff: json.metadata.dropoff,
-        date: json.metadata.date,
-        time: json.metadata.time,
-        passengers: json.metadata.passengers,
-        distanceKm: json.metadata.distance_km,
-        durationText: json.metadata.duration_text,
-        isSwiss: json.metadata.is_swiss,
-        price: `${json.amount_total / 100} ${json.currency.toUpperCase()}`,
-      }),
-    });
-  }
-
-  // 3️⃣ Loading screen
-  if (!data)
-    return (
-      <main style={{ color: "#fff", textAlign: "center", padding: 40 }}>
-        Loading information...
-      </main>
-    );
-
-  // 4️⃣ Final EN success page
   return (
     <main
       style={{
-        maxWidth: 700,
-        margin: "60px auto",
-        color: "#fff",
+        padding: "80px 20px",
         textAlign: "center",
+        color: "#fff",
+        maxWidth: "700px",
+        margin: "0 auto",
       }}
     >
-      <h1 style={{ fontSize: 32, marginBottom: 16 }}>✅ Payment Confirmed</h1>
+      <h1 style={{ fontSize: "2.6rem", marginBottom: "20px", color: "#facc15" }}>
+        Payment confirmed ✔️
+      </h1>
 
-      <p>Your booking has been successfully validated.</p>
-
-      <p style={{ marginTop: 16 }}>
-        Booking Reference: <strong>{cid}</strong>
-      </p>
-
-      <hr style={{ margin: "20px 0", opacity: 0.3 }} />
-
-      <p>
-        <strong>Pickup:</strong> {data.metadata.pickup}
-      </p>
-      <p>
-        <strong>Drop-off:</strong> {data.metadata.dropoff}
-      </p>
-      <p>
-        <strong>Date:</strong> {data.metadata.date}
-      </p>
-      <p>
-        <strong>Time:</strong> {data.metadata.time}
-      </p>
-      <p>
-        <strong>Distance:</strong> {data.metadata.distance_km} km
-      </p>
-      <p>
-        <strong>Estimated Duration:</strong> {data.metadata.duration_text}
+      <p style={{ fontSize: "1.2rem", opacity: 0.85, marginBottom: "30px" }}>
+        Thank you! Your booking has been recorded.
+        <br />
+        A confirmation email has been sent.
       </p>
 
-      <p style={{ marginTop: 16 }}>
-        <strong>Amount Paid:</strong>{" "}
-        {data.amount_total / 100} {data.currency.toUpperCase()}
-      </p>
+      {status === "ok" && amount != null && currency && (
+        <p style={{ fontSize: "0.95rem", opacity: 0.75 }}>
+          Recorded amount: {amount.toFixed(2)} {currency}
+        </p>
+      )}
+
+      {status === "error" && (
+        <p style={{ fontSize: "0.95rem", opacity: 0.85, color: "#fca5a5" }}>
+          Something went wrong (session or email). The payment may still be confirmed on Stripe.
+        </p>
+      )}
 
       <a
         href="/en"
         style={{
           display: "inline-block",
-          padding: "12px 20px",
-          borderRadius: 999,
-          background: "linear-gradient(90deg,#d4a019,#f5c451)",
+          padding: "12px 28px",
+          background: "#facc15",
           color: "#000",
-          fontWeight: 600,
+          borderRadius: "8px",
+          fontWeight: "600",
           textDecoration: "none",
-          marginTop: 30,
+          fontSize: "1.1rem",
+          marginTop: "20px",
         }}
       >
-        Back to Home
+        Back to home
       </a>
     </main>
   );

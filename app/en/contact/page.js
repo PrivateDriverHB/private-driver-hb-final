@@ -1,4 +1,44 @@
+"use client";
+
+import { useState } from "react";
+
 export default function ContactPageEN() {
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+
+    const form = e.target;
+    const data = {
+      name: form.name.value,
+      email: form.email.value,
+      phone: form.phone?.value || "",
+      message: form.message.value,
+      lang: "en", // ✅ Ajout essentiel pour la détection côté backend
+    };
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        alert("✅ Message sent successfully!");
+        form.reset();
+      } else {
+        alert("❌ An error occurred. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("⚠️ Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main
       style={{
@@ -13,9 +53,9 @@ export default function ContactPageEN() {
       </h1>
 
       <p style={{ fontSize: "17px", opacity: 0.85, marginBottom: 25 }}>
-        For any questions, urgent transfers, or special requests, feel free to reach out.
-        I respond quickly and provide support 24/7 for bookings from Geneva Airport,
-        Lyon, Annecy and ski resorts.
+        For any transfer request, urgent question or special booking,
+        don’t hesitate to contact me. I reply quickly and remain available
+        24/7 for transfers from Geneva, Lyon, Annecy and all major ski resorts.
       </p>
 
       {/* INFO CARDS */}
@@ -62,7 +102,12 @@ export default function ContactPageEN() {
             <a
               href="https://wa.me/33766441270?text=Hello%2C%20I%20would%20like%20to%20book%20a%20transfer."
               target="_blank"
-              style={{ color: "#25D366", fontWeight: 600, textDecoration: "none" }}
+              rel="noopener noreferrer"
+              style={{
+                color: "#25D366",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               Chat on WhatsApp
             </a>
@@ -78,7 +123,7 @@ export default function ContactPageEN() {
             border: "1px solid #333",
           }}
         >
-          <h3 style={{ fontSize: "20px", marginBottom: "8px" }}>📧 Email</h3>
+          <h3 style={{ fontSize: "20px", marginBottom: "8px" }}>📧 E-mail</h3>
           <p>
             <a
               href="mailto:booking@privatedriverhb.com"
@@ -89,7 +134,7 @@ export default function ContactPageEN() {
           </p>
         </div>
 
-        {/* SERVICE AREA */}
+        {/* SERVICE AREAS */}
         <div
           style={{
             background: "rgba(255,255,255,0.05)",
@@ -98,11 +143,15 @@ export default function ContactPageEN() {
             border: "1px solid #333",
           }}
         >
-          <h3 style={{ fontSize: "20px", marginBottom: "8px" }}>📍 Service Areas</h3>
+          <h3 style={{ fontSize: "20px", marginBottom: "8px" }}>
+            📍 Service Areas
+          </h3>
           <p style={{ opacity: 0.8 }}>
-            Geneva Airport (GVA)  
-            <br />Lyon • Annecy • Chamonix • Avoriaz • Morzine  
-            <br />Ski resorts & private transfers
+            Geneva Airport (GVA)
+            <br />
+            Lyon • Annecy • Chamonix • Avoriaz • Morzine
+            <br />
+            Airport & Ski Resort Transfers
           </p>
         </div>
       </div>
@@ -117,18 +166,13 @@ export default function ContactPageEN() {
         }}
       >
         <h2 style={{ fontSize: "24px", marginBottom: "12px" }}>
-          Send a message
+          Send a Message
         </h2>
 
         <form
-          action="https://formsubmit.co/booking@privatedriverhb.com"
-          method="POST"
+          onSubmit={handleSubmit}
           style={{ display: "grid", gap: "15px", marginTop: "20px" }}
         >
-          {/* Anti-spam */}
-          <input type="hidden" name="_captcha" value="false" />
-          <input type="hidden" name="_subject" value="New EN Contact — Private Driver HB" />
-
           <input
             required
             name="name"
@@ -156,6 +200,19 @@ export default function ContactPageEN() {
             }}
           />
 
+          <input
+            name="phone"
+            type="tel"
+            placeholder="Your phone (optional)"
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid #333",
+              background: "#000",
+              color: "#fff",
+            }}
+          />
+
           <textarea
             required
             name="message"
@@ -172,6 +229,7 @@ export default function ContactPageEN() {
 
           <button
             type="submit"
+            disabled={loading}
             style={{
               padding: "14px 22px",
               borderRadius: "999px",
@@ -181,9 +239,10 @@ export default function ContactPageEN() {
               border: "none",
               cursor: "pointer",
               marginTop: "10px",
+              opacity: loading ? 0.7 : 1,
             }}
           >
-            Send Message
+            {loading ? "Sending..." : "Send Message"}
           </button>
         </form>
       </section>

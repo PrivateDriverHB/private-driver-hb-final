@@ -217,3 +217,11 @@ header {
     display: flex;
   }
 }
+
+/* ==========================
+   Google Places Autocomplete (dropdown)
+   ========================== */
+.pac-container {
+  z-index: 999999 !important;
+  position: fixed !important; /* évite que la liste soit coupée/masquée */
+}

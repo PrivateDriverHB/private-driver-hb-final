@@ -9,13 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "stripe": "^16.0.0",
-    "resend": "^4.0.0"
+    "resend": "^4.0.0",
+    "stripe": "^16.0.0"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5"
   }
