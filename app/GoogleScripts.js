@@ -19,22 +19,19 @@ export default function GoogleScripts() {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-
-          // Google Ads
           gtag('config', 'AW-17756859164');
-
-          console.log("🚀 gtag chargé depuis GoogleScripts");
+          console.log("🚀 Google Ads chargé");
         `}
       </Script>
 
-      {/* ✅ Google Maps Places — charger UNE SEULE fois */}
+      {/* ✅ Google Maps + Places (FIX iOS) */}
       {googleApiKey ? (
         <Script
           id="google-maps-places"
-          src={`https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=places&loading=async`}
+          src={`https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=places&language=fr`}
           strategy="afterInteractive"
           onLoad={() => {
-            console.log("✅ Google Maps loaded (global)");
+            console.log("✅ Google Maps + Places chargé");
             window.dispatchEvent(new Event("google-maps-loaded"));
           }}
           onError={() => console.error("❌ Google Maps failed to load")}
