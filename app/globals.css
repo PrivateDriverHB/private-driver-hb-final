@@ -17,6 +17,11 @@ html, body {
   line-height: 1.6;
 }
 
+/* ✅ Petit fix iOS : évite certains scroll “bizarres” quand clavier ouvert */
+body {
+  overscroll-behavior: none;
+}
+
 a {
   color: #f5c451;
   text-decoration: none;
@@ -219,9 +224,27 @@ header {
 }
 
 /* ==========================
-   Google Places Autocomplete (dropdown)
+   Google Places Autocomplete (dropdown) — FIX iOS / Mobile
    ========================== */
+
+/* ✅ IMPORTANT :
+   - Ne PAS utiliser position: fixed (cause dropdown trop bas sur iOS).
+   - On force juste un z-index énorme pour passer au-dessus de tes overlays.
+*/
 .pac-container {
-  z-index: 999999 !important;
-  position: fixed !important; /* évite que la liste soit coupée/masquée */
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+}
+
+/* ✅ Les lignes de résultats doivent être cliquables */
+.pac-item {
+  pointer-events: auto !important;
+  cursor: pointer;
+  padding: 10px 12px !important; /* plus facile au doigt */
+}
+
+/* ✅ Optionnel: rend la sélection plus “touch-friendly” */
+.pac-item,
+.pac-item span {
+  -webkit-tap-highlight-color: transparent;
 }

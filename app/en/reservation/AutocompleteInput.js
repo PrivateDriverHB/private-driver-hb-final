@@ -13,46 +13,64 @@ export default function AutocompleteInput({
 
   useEffect(() => {
     const init = () => {
-      if (!window.google || !window.google.maps || !window.google.maps.places) return;
+      if (!window.google?.maps?.places) return;
       if (!inputRef.current) return;
 
-      // ✅ prevent double init
+      // ✅ Prevent double init
       if (autocompleteRef.current) return;
 
-      autocompleteRef.current = new window.google.maps.places.Autocomplete(
-        inputRef.current,
-        {
-          // ✅ IMPORTANT:
-          // - remove "geocode" filter so airports (establishments) appear
-          // types: ["geocode"],
+      const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+        // ✅ Keep airports etc (no "geocode" filter)
+        fields: [
+          "formatted_address",
+          "place_id",
+          "address_components",
+          "geometry",
+          "name",
+        ],
+        componentRestrictions: { country: ["ch", "fr"] },
+      });
 
-          // ✅ Keep the fields you need
-          fields: ["formatted_address", "place_id", "address_components", "geometry", "name"],
-
-          // ✅ Strongly recommended to avoid USA/other countries
-          componentRestrictions: { country: ["ch", "fr"] },
-        }
-      );
-
-      autocompleteRef.current.addListener("place_changed", () => {
-        const place = autocompleteRef.current.getPlace();
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
         if (!place) return;
 
-        // ✅ best value: formatted_address (fallback: name)
-        const nextValue = place.formatted_address || place.name || value || "";
-        onChange?.(nextValue);
+        const address = place.formatted_address || place.name || "";
 
+        // ✅ Must have a real selection (place_id)
+        if (!place.place_id || !address) {
+          // If Google returns incomplete place, do nothing (force user to reselect)
+          return;
+        }
+
+        // ✅ iOS fix: first tap sometimes just changes focus/keyboard
+        // blur makes the selection stick immediately
+        inputRef.current?.blur();
+
+        // ✅ Update input value with full address (never country-only)
+        onChange?.(address);
+
+        // ✅ Send full place object to parent
         onSelect?.(place);
       });
+
+      autocompleteRef.current = ac;
     };
 
     init();
 
+    // ✅ If Google script loads later, initialize then
     const handler = () => init();
     window.addEventListener("google-maps-loaded", handler);
 
     return () => {
       window.removeEventListener("google-maps-loaded", handler);
+
+      // ✅ Cleanup (avoid issues when switching EN <-> FR)
+      try {
+        autocompleteRef.current?.unbindAll?.();
+      } catch {}
+      autocompleteRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onSelect, onChange]);
@@ -62,9 +80,21 @@ export default function AutocompleteInput({
       ref={inputRef}
       value={value}
       disabled={disabled}
-      onChange={(e) => onChange?.(e.target.value)}
+      onChange={(e) => {
+        // ✅ When typing manually, we keep value updating,
+        // but the parent should mark "selected:false" until a real place is picked.
+        onChange?.(e.target.value);
+      }}
+      onFocus={() => {
+        // ✅ Optional but helps iOS: put cursor properly, keep dropdown near input
+        // (also helps when page is scrollable)
+        try {
+          inputRef.current?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+        } catch {}
+      }}
       placeholder={placeholder}
       autoComplete="off"
+      inputMode="search"
       style={{
         padding: "12px",
         borderRadius: "8px",

@@ -206,7 +206,14 @@ export default function ReservationPageEn() {
       if (prev.price === price && prev.isSwiss === involvesCH) return prev;
       return { ...prev, price, isSwiss: involvesCH };
     });
-  }, [passengers, luggageType, luggageCount, pickupMeta.country, dropoffMeta.country, result?.distanceKm]);
+  }, [
+    passengers,
+    luggageType,
+    luggageCount,
+    pickupMeta.country,
+    dropoffMeta.country,
+    result?.distanceKm,
+  ]);
 
   // ✅ Click => final validation + lock
   async function handleCalculate(e) {
@@ -363,17 +370,31 @@ export default function ReservationPageEn() {
               onChange={(v) => {
                 if (locked) return;
                 setPickup(v);
+                setResult(null);
+                setError(null);
                 setPickupPlace(null);
-                setPickupMeta((p) => ({ ...p, selected: false, placeId: null, country: null }));
+                setPickupMeta((p) => ({
+                  ...p,
+                  selected: false,
+                  placeId: null,
+                  country: null,
+                }));
               }}
               onSelect={(place) => {
                 if (locked) return;
+
+                const address = place?.formatted_address || place?.name || "";
+                const placeId = place?.place_id || null;
+
+                if (!address || !placeId) return;
+
                 const country = getCountryCodeFromPlace(place);
-                setPickup(place?.formatted_address || pickup);
+
+                setPickup(address);
                 setPickupPlace(place || null);
                 setPickupMeta({
                   selected: true,
-                  placeId: place?.place_id || null,
+                  placeId,
                   country,
                 });
               }}
@@ -399,17 +420,31 @@ export default function ReservationPageEn() {
               onChange={(v) => {
                 if (locked) return;
                 setDropoff(v);
+                setResult(null);
+                setError(null);
                 setDropoffPlace(null);
-                setDropoffMeta((p) => ({ ...p, selected: false, placeId: null, country: null }));
+                setDropoffMeta((p) => ({
+                  ...p,
+                  selected: false,
+                  placeId: null,
+                  country: null,
+                }));
               }}
               onSelect={(place) => {
                 if (locked) return;
+
+                const address = place?.formatted_address || place?.name || "";
+                const placeId = place?.place_id || null;
+
+                if (!address || !placeId) return;
+
                 const country = getCountryCodeFromPlace(place);
-                setDropoff(place?.formatted_address || dropoff);
+
+                setDropoff(address);
                 setDropoffPlace(place || null);
                 setDropoffMeta({
                   selected: true,
-                  placeId: place?.place_id || null,
+                  placeId,
                   country,
                 });
               }}
@@ -661,8 +696,7 @@ export default function ReservationPageEn() {
 
           {locked && (
             <p style={{ fontSize: 12, marginTop: 10, color: "#aaa" }}>
-              🔒 The form is locked after validation. Click <strong>“Edit trip”</strong> to change any
-              information.
+              🔒 The form is locked after validation. Click <strong>“Edit trip”</strong> to change any information.
             </p>
           )}
         </div>

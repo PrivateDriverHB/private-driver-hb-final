@@ -6,7 +6,7 @@ import AutocompleteInput from "./AutocompleteInput";
 function getCountryCodeFromPlace(place) {
   const comps = place?.address_components || [];
   const country = comps.find((c) => c.types?.includes("country"));
-  return country?.short_name || null; // "CH" / "FR" / ...
+  return country?.short_name || null; // "CH" / "FR"
 }
 
 // ✅ Base prix / km (à ajuster)
@@ -20,10 +20,8 @@ export default function ReservationPageFr() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
 
-  // ✅ Audi A4 Avant = max 4 passagers
   const [passengers, setPassengers] = useState(1);
 
-  // ✅ Bagages
   const [luggageType, setLuggageType] = useState("medium"); // "medium" | "large"
   const [luggageCount, setLuggageCount] = useState(1);
 
@@ -31,10 +29,8 @@ export default function ReservationPageFr() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // ✅ Lock uniquement après clic
   const [locked, setLocked] = useState(false);
 
-  // ✅ On force la sélection Google (place_id + country)
   const [pickupMeta, setPickupMeta] = useState({
     selected: false,
     placeId: null,
@@ -46,11 +42,9 @@ export default function ReservationPageFr() {
     country: null,
   });
 
-  // (optionnel) place complet
   const [pickupPlace, setPickupPlace] = useState(null);
   const [dropoffPlace, setDropoffPlace] = useState(null);
 
-  // ✅ Règles bagages dynamiques
   const luggageRule = useMemo(() => {
     let max = luggageType === "large" ? 3 : 4;
 
@@ -95,16 +89,12 @@ export default function ReservationPageFr() {
   function unlockAndReset() {
     setLocked(false);
     setError(null);
-    // on garde les champs, mais on peut vider le résultat si tu veux :
     setResult(null);
   }
 
-  // ✅ 1) Calcul distance/durée (Google) — uniquement quand les places changent
   async function fetchDistanceAndDuration() {
-    // Ne pas recalculer si lock (validation finale faite)
     if (locked) return;
 
-    // Pré-requis
     if (!pickupMeta.selected || !pickupMeta.placeId) return;
     if (!dropoffMeta.selected || !dropoffMeta.placeId) return;
     if (!date || !time) return;
@@ -151,7 +141,6 @@ export default function ReservationPageFr() {
         throw new Error("Distance non valide.");
       }
 
-      // On met à jour le résultat sans clignotement
       setResult((prev) => {
         const base = computeBaseRate({ isSwiss: involvesCH });
         const price = Math.round(distanceKm * base);
@@ -173,7 +162,6 @@ export default function ReservationPageFr() {
     }
   }
 
-  // ✅ Auto-calcul distance/durée uniquement quand adresses changent (debounce)
   useEffect(() => {
     if (locked) return;
     if (!pickupMeta.placeId || !dropoffMeta.placeId) return;
@@ -194,7 +182,6 @@ export default function ReservationPageFr() {
     time,
   ]);
 
-  // ✅ 2) Recalcul prix local (sans Google) quand pax/bagages changent
   useEffect(() => {
     if (!result?.distanceKm) return;
 
@@ -204,13 +191,18 @@ export default function ReservationPageFr() {
 
     setResult((prev) => {
       if (!prev) return prev;
-      // évite setState inutile si identique
       if (prev.price === price && prev.isSwiss === involvesCH) return prev;
       return { ...prev, price, isSwiss: involvesCH };
     });
-  }, [passengers, luggageType, luggageCount, pickupMeta.country, dropoffMeta.country, result?.distanceKm]);
+  }, [
+    passengers,
+    luggageType,
+    luggageCount,
+    pickupMeta.country,
+    dropoffMeta.country,
+    result?.distanceKm,
+  ]);
 
-  // ✅ Clic bouton => validation finale + lock
   async function handleCalculate(e) {
     e.preventDefault();
 
@@ -220,12 +212,10 @@ export default function ReservationPageFr() {
       return;
     }
 
-    // Assure qu'on a distance/durée (si l'auto-calc n'a pas encore fini)
     if (!result?.distanceKm || !result?.durationText) {
       await fetchDistanceAndDuration();
     }
 
-    // Si toujours rien, on bloque
     if (!result?.distanceKm) {
       setError("Merci de patienter : la distance est en cours de calcul.");
       return;
@@ -327,7 +317,6 @@ export default function ReservationPageFr() {
           alignItems: "flex-start",
         }}
       >
-        {/* FORMULAIRE */}
         <form
           onSubmit={handleCalculate}
           style={{
@@ -367,17 +356,25 @@ export default function ReservationPageFr() {
               onChange={(v) => {
                 if (locked) return;
                 setPickup(v);
+                setResult(null);
+                setError(null);
                 setPickupPlace(null);
                 setPickupMeta((p) => ({ ...p, selected: false, placeId: null, country: null }));
               }}
               onSelect={(place) => {
                 if (locked) return;
+
+                const address = place?.formatted_address || place?.name || "";
+                const placeId = place?.place_id || null;
+                if (!address || !placeId) return;
+
                 const country = getCountryCodeFromPlace(place);
-                setPickup(place?.formatted_address || pickup);
+
+                setPickup(address);
                 setPickupPlace(place || null);
                 setPickupMeta({
                   selected: true,
-                  placeId: place?.place_id || null,
+                  placeId,
                   country,
                 });
               }}
@@ -403,17 +400,25 @@ export default function ReservationPageFr() {
               onChange={(v) => {
                 if (locked) return;
                 setDropoff(v);
+                setResult(null);
+                setError(null);
                 setDropoffPlace(null);
                 setDropoffMeta((p) => ({ ...p, selected: false, placeId: null, country: null }));
               }}
               onSelect={(place) => {
                 if (locked) return;
+
+                const address = place?.formatted_address || place?.name || "";
+                const placeId = place?.place_id || null;
+                if (!address || !placeId) return;
+
                 const country = getCountryCodeFromPlace(place);
-                setDropoff(place?.formatted_address || dropoff);
+
+                setDropoff(address);
                 setDropoffPlace(place || null);
                 setDropoffMeta({
                   selected: true,
-                  placeId: place?.place_id || null,
+                  placeId,
                   country,
                 });
               }}
@@ -431,6 +436,7 @@ export default function ReservationPageFr() {
             )}
           </div>
 
+          {/* le reste inchangé */}
           <div style={{ marginBottom: 12 }}>
             <label>Date</label>
             <input
@@ -593,7 +599,7 @@ export default function ReservationPageFr() {
           {error && <p style={{ color: "#ff6b6b", marginTop: 12 }}>❌ {error}</p>}
         </form>
 
-        {/* RÉSUMÉ */}
+        {/* Résumé inchangé */}
         <div
           style={{
             flex: "1 1 380px",
