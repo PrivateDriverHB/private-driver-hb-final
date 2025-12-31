@@ -3,32 +3,29 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import Stripe from "stripe";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const resendApiKey = process.env.RESEND_API_KEY;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
 
-let resend = null;
-if (resendApiKey) {
-  resend = new Resend(resendApiKey);
-} else {
-  console.warn("⚠️ RESEND_API_KEY is missing — emails will not be sent.");
-}
-
-// ✅ Adresse expéditeur et destinataire principal
+// ⚠️ IMPORTANT : mets une adresse FROM réellement validée dans Resend
 const OWNER_EMAIL = "booking@privatedriverhb.com";
-const FROM_EMAIL = "Private Driver HB <noreply@privatedriverhb.com>";
+const FROM_EMAIL = "Private Driver HB <booking@privatedriverhb.com>";
+
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
+if (!resendApiKey) console.warn("⚠️ RESEND_API_KEY missing — emails won't be sent.");
 
 function moneyFromStripe(amountTotal, currency) {
   const cur = (currency || "").toUpperCase();
   if (typeof amountTotal !== "number") return "—";
-  const units = Math.round(amountTotal / 100);
-  return `${units} ${cur}`;
+  const value = (amountTotal / 100).toFixed(2);
+  return `${value} ${cur}`;
 }
 
 export async function POST(request) {
   try {
     const body = await request.json();
-
-    // ✅ Exiger sessionId + email client
     const { sessionId, to } = body || {};
 
     if (!to) {
@@ -37,33 +34,29 @@ export async function POST(request) {
     if (!sessionId) {
       return NextResponse.json({ error: "sessionId manquant." }, { status: 400 });
     }
-
     if (!resend) {
-      console.log("📭 Mode simulation — emails non envoyés.");
       return NextResponse.json({ ok: true, simulated: true });
     }
-
     if (!stripeSecretKey) {
-      return NextResponse.json(
-        { error: "Clé Stripe secrète manquante (ENV)." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "STRIPE_SECRET_KEY manquante (ENV)." }, { status: 500 });
     }
 
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
 
-    // 🔐 SOURCE DE VÉRITÉ STRIPE
+    // 🔐 Source de vérité Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    // 🔒 SÉCURITÉ ABSOLUE : paiement obligatoire
+    // 🔒 Paiement obligatoire
     if (session.payment_status !== "paid") {
-      return NextResponse.json(
-        { error: "Paiement non confirmé. Email non envoyé." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Paiement non confirmé. Email non envoyé." }, { status: 400 });
     }
 
     const md = session.metadata || {};
+
+    // ✅ Anti-double envoi PRO (persistant)
+    if (md.email_sent === "true") {
+      return NextResponse.json({ duplicate: true, reason: "email_sent metadata already true" });
+    }
 
     const courseId = md.course_id || "—";
     const pickup = md.pickup || "—";
@@ -71,14 +64,10 @@ export async function POST(request) {
     const date = md.date || "—";
     const time = md.time || "—";
     const passengers = md.passengers || "—";
-    const distanceKm = md.distance_km || "";
-    const durationText = md.duration_text || "—";
     const isSwiss = md.is_swiss === "true";
 
-    // ✅ Prix réellement payé
     const pricePaid = moneyFromStripe(session.amount_total, session.currency);
 
-    // Couleur marque
     const gold = "#d4a019";
 
     // ---------------------------------------------------
@@ -99,6 +88,7 @@ export async function POST(request) {
           <p style="text-align:center;font-size:14px;margin:0 0 24px;">
             Merci pour votre confiance. Votre réservation est confirmée.
           </p>
+
           <div style="font-size:14px;line-height:1.7;margin-bottom:20px;">
             <p><strong style="color:${gold};">Numéro de réservation :</strong> ${courseId}</p>
             <p><strong style="color:${gold};">Trajet :</strong> ${pickup} → ${dropoff}</p>
@@ -107,6 +97,7 @@ export async function POST(request) {
             <p><strong style="color:${gold};">Passagers :</strong> ${passengers}</p>
             <p><strong style="color:${gold};">Prix payé :</strong> ${pricePaid}</p>
           </div>
+
           <div style="background:#f9f9f9;border:1px solid #ddd;border-radius:10px;
                       padding:14px 16px;margin-bottom:22px;">
             <p style="margin:0 0 6px;font-size:14px;">
@@ -118,6 +109,7 @@ export async function POST(request) {
               💬 +33 7 66 44 12 70
             </a>
           </div>
+
           <div style="font-size:12px;color:#777;text-align:center;">
             Private Driver HB – Chauffeur privé / VTC<br/>
             <a href="https://www.privatedriverhb.com" style="color:${gold};text-decoration:none;">
@@ -129,7 +121,7 @@ export async function POST(request) {
     `;
 
     // ---------------------------------------------------
-    // 📩 EMAIL CHAUFFEUR / PROPRIÉTAIRE
+    // 📩 EMAIL CHAUFFEUR
     // ---------------------------------------------------
     const htmlOwner = `
       <div style="background:#ffffff;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#000;">
@@ -147,18 +139,13 @@ export async function POST(request) {
             <p><strong style="color:${gold};">Passagers :</strong> ${passengers}</p>
             <p><strong style="color:${gold};">Suisse :</strong> ${isSwiss ? "Oui 🇨🇭" : "Non 🇫🇷"}</p>
             <p><strong style="color:${gold};">Prix payé :</strong> ${pricePaid}</p>
+            <p><strong style="color:${gold};">Session :</strong> ${sessionId}</p>
           </div>
         </div>
       </div>
     `;
 
-    // ✅ Anti-double envoi (clé = sessionId)
-    if (!globalThis.__sentEmails) globalThis.__sentEmails = new Map();
-    if (globalThis.__sentEmails.has(sessionId)) {
-      return NextResponse.json({ duplicate: true });
-    }
-    globalThis.__sentEmails.set(sessionId, Date.now());
-
+    // ✅ Envoi emails
     await resend.emails.send({
       from: FROM_EMAIL,
       to,
@@ -173,12 +160,18 @@ export async function POST(request) {
       html: htmlOwner,
     });
 
+    // ✅ Marquer la session Stripe pour éviter double envoi (persistant)
+    await stripe.checkout.sessions.update(sessionId, {
+      metadata: {
+        ...md,
+        email_sent: "true",
+        email_sent_at: new Date().toISOString(),
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("❌ Erreur Envoi Email:", error);
-    return NextResponse.json(
-      { error: "Erreur lors de l'envoi des emails." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur lors de l'envoi des emails." }, { status: 500 });
   }
 }

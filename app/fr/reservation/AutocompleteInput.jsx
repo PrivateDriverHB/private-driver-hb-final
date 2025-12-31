@@ -11,72 +11,133 @@ export default function AutocompleteInput({
 }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
-
-  // ✅ garder les callbacks à jour sans ré-init Autocomplete
-  const onChangeRef = useRef(onChange);
-  const onSelectRef = useRef(onSelect);
+  const pacRef = useRef(null);
+  const observerRef = useRef(null);
 
   useEffect(() => {
-    onChangeRef.current = onChange;
-    onSelectRef.current = onSelect;
-  }, [onChange, onSelect]);
+    const input = inputRef.current;
+    if (!input) return;
 
-  useEffect(() => {
+    const getLatestPac = () => {
+      const list = document.querySelectorAll(".pac-container");
+      const pac = list.length ? list[list.length - 1] : null; // ✅ dernier = le plus récent
+      if (pac) {
+        pacRef.current = pac;
+        pac.style.zIndex = "2147483647";
+        pac.style.pointerEvents = "auto";
+      }
+      return pac;
+    };
+
+    const positionPac = () => {
+      const pac = pacRef.current || getLatestPac();
+      if (!pac || !inputRef.current) return;
+
+      const r = inputRef.current.getBoundingClientRect();
+
+      // ✅ Position absolue dans le document
+      const top = r.bottom + window.scrollY;
+      const left = r.left + window.scrollX;
+      const width = r.width;
+
+      pac.style.position = "absolute";
+      pac.style.top = `${top}px`;
+      pac.style.left = `${left}px`;
+      pac.style.width = `${width}px`;
+    };
+
     const init = () => {
       if (!window.google?.maps?.places) return;
       if (!inputRef.current) return;
 
-      // ✅ prevent double init
+      // ✅ évite double init
       if (autocompleteRef.current) return;
 
-      autocompleteRef.current = new window.google.maps.places.Autocomplete(
-        inputRef.current,
-        {
-          // ✅ IMPORTANT: pas de types ["geocode"] (sinon aéroports parfois absents)
-          fields: [
-            "formatted_address",
-            "place_id",
-            "address_components",
-            "geometry",
-            "name",
-          ],
-          // ✅ Limite FR + CH
-          componentRestrictions: { country: ["fr", "ch"] },
-        }
-      );
+      const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+        fields: [
+          "formatted_address",
+          "place_id",
+          "address_components",
+          "geometry",
+          "name",
+        ],
+      });
 
-      autocompleteRef.current.addListener("place_changed", () => {
-        const place = autocompleteRef.current?.getPlace?.();
+      // ✅ FR + CH
+      ac.setComponentRestrictions({ country: ["fr", "ch"] });
+
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
         if (!place) return;
 
-        const address = place.formatted_address || place.name || "";
-        const placeId = place.place_id || null;
+        const nextValue = place.formatted_address || place.name || "";
+        onChange?.(nextValue);
+        onSelect?.(place);
 
-        // ✅ sécurité : il faut un vrai résultat Google
-        if (!address || !placeId) return;
-
-        // ✅ met à jour l'input + déclenche parent
-        onChangeRef.current?.(address);
-        onSelectRef.current?.(place);
-
-        // ✅ iPhone: ferme le clavier pour faciliter le clic
-        inputRef.current?.blur?.();
+        // ✅ reposition après sélection
+        setTimeout(positionPac, 0);
       });
+
+      autocompleteRef.current = ac;
+
+      // ✅ première capture + position
+      setTimeout(() => {
+        getLatestPac();
+        positionPac();
+      }, 0);
     };
 
     init();
 
-    // ✅ si Google Maps charge après
-    const handler = () => init();
+    // ✅ MutationObserver : dès qu’un pac-container apparaît → on le capte + positionne
+    observerRef.current = new MutationObserver(() => {
+      const pac = getLatestPac();
+      if (pac) positionPac();
+    });
+    observerRef.current.observe(document.body, { childList: true, subtree: true });
+
+    // ✅ events iOS
+    const onFocus = () => {
+      // important: recapter le bon pac à chaque focus (pickup vs dropoff)
+      setTimeout(() => {
+        getLatestPac();
+        positionPac();
+      }, 0);
+    };
+
+    const onInput = () => setTimeout(positionPac, 0);
+
+    input.addEventListener("focus", onFocus);
+    input.addEventListener("input", onInput);
+
+    window.addEventListener("scroll", positionPac, true);
+    window.addEventListener("resize", positionPac);
+
+    // ✅ event global quand Google Maps charge
+    const handler = () => {
+      init();
+      setTimeout(() => {
+        getLatestPac();
+        positionPac();
+      }, 0);
+    };
     window.addEventListener("google-maps-loaded", handler);
 
     return () => {
+      input.removeEventListener("focus", onFocus);
+      input.removeEventListener("input", onInput);
+      window.removeEventListener("scroll", positionPac, true);
+      window.removeEventListener("resize", positionPac);
       window.removeEventListener("google-maps-loaded", handler);
-      // ⚠️ On ne détruit pas agressivement l'instance (sinon bugs multi-clic)
-      // Laisser Google gérer, et l’instance disparaît au unmount.
+
+      observerRef.current?.disconnect?.();
+      observerRef.current = null;
+
+      // (optionnel) nettoyage
       autocompleteRef.current = null;
+      pacRef.current = null;
     };
-  }, []);
+  }, [onChange, onSelect]);
 
   return (
     <input
@@ -86,7 +147,7 @@ export default function AutocompleteInput({
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
       autoComplete="off"
-      inputMode="text"
+      inputMode="search"
       style={{
         padding: "12px",
         borderRadius: "8px",

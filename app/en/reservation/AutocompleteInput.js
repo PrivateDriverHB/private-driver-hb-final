@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef } from "react";
 
 export default function AutocompleteInput({
@@ -10,17 +11,49 @@ export default function AutocompleteInput({
 }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
+  const pacRef = useRef(null);
+  const observerRef = useRef(null);
 
   useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const getLatestPac = () => {
+      const list = document.querySelectorAll(".pac-container");
+      const pac = list.length ? list[list.length - 1] : null; // ✅ dernier = le plus récent
+      if (pac) {
+        pacRef.current = pac;
+        pac.style.zIndex = "2147483647";
+        pac.style.pointerEvents = "auto";
+      }
+      return pac;
+    };
+
+    const positionPac = () => {
+      const pac = pacRef.current || getLatestPac();
+      if (!pac || !inputRef.current) return;
+
+      const r = inputRef.current.getBoundingClientRect();
+
+      // ✅ Position absolue dans le document
+      const top = r.bottom + window.scrollY;
+      const left = r.left + window.scrollX;
+      const width = r.width;
+
+      pac.style.position = "absolute";
+      pac.style.top = `${top}px`;
+      pac.style.left = `${left}px`;
+      pac.style.width = `${width}px`;
+    };
+
     const init = () => {
       if (!window.google?.maps?.places) return;
       if (!inputRef.current) return;
 
-      // ✅ Prevent double init
+      // ✅ évite double init
       if (autocompleteRef.current) return;
 
       const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
-        // ✅ Keep airports etc (no "geocode" filter)
         fields: [
           "formatted_address",
           "place_id",
@@ -28,70 +61,90 @@ export default function AutocompleteInput({
           "geometry",
           "name",
         ],
-        componentRestrictions: { country: ["ch", "fr"] },
       });
+
+      // ✅ FR + CH
+      ac.setComponentRestrictions({ country: ["fr", "ch"] });
 
       ac.addListener("place_changed", () => {
         const place = ac.getPlace();
         if (!place) return;
 
-        const address = place.formatted_address || place.name || "";
-
-        // ✅ Must have a real selection (place_id)
-        if (!place.place_id || !address) {
-          // If Google returns incomplete place, do nothing (force user to reselect)
-          return;
-        }
-
-        // ✅ iOS fix: first tap sometimes just changes focus/keyboard
-        // blur makes the selection stick immediately
-        inputRef.current?.blur();
-
-        // ✅ Update input value with full address (never country-only)
-        onChange?.(address);
-
-        // ✅ Send full place object to parent
+        const nextValue = place.formatted_address || place.name || "";
+        onChange?.(nextValue);
         onSelect?.(place);
+
+        // ✅ reposition après sélection
+        setTimeout(positionPac, 0);
       });
 
       autocompleteRef.current = ac;
+
+      // ✅ première capture + position
+      setTimeout(() => {
+        getLatestPac();
+        positionPac();
+      }, 0);
     };
 
     init();
 
-    // ✅ If Google script loads later, initialize then
-    const handler = () => init();
+    // ✅ MutationObserver : dès qu’un pac-container apparaît → on le capte + positionne
+    observerRef.current = new MutationObserver(() => {
+      const pac = getLatestPac();
+      if (pac) positionPac();
+    });
+    observerRef.current.observe(document.body, { childList: true, subtree: true });
+
+    // ✅ events iOS
+    const onFocus = () => {
+      // important: recapter le bon pac à chaque focus (pickup vs dropoff)
+      setTimeout(() => {
+        getLatestPac();
+        positionPac();
+      }, 0);
+    };
+
+    const onInput = () => setTimeout(positionPac, 0);
+
+    input.addEventListener("focus", onFocus);
+    input.addEventListener("input", onInput);
+
+    window.addEventListener("scroll", positionPac, true);
+    window.addEventListener("resize", positionPac);
+
+    // ✅ event global quand Google Maps charge
+    const handler = () => {
+      init();
+      setTimeout(() => {
+        getLatestPac();
+        positionPac();
+      }, 0);
+    };
     window.addEventListener("google-maps-loaded", handler);
 
     return () => {
+      input.removeEventListener("focus", onFocus);
+      input.removeEventListener("input", onInput);
+      window.removeEventListener("scroll", positionPac, true);
+      window.removeEventListener("resize", positionPac);
       window.removeEventListener("google-maps-loaded", handler);
 
-      // ✅ Cleanup (avoid issues when switching EN <-> FR)
-      try {
-        autocompleteRef.current?.unbindAll?.();
-      } catch {}
+      observerRef.current?.disconnect?.();
+      observerRef.current = null;
+
+      // (optionnel) nettoyage
       autocompleteRef.current = null;
+      pacRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onSelect, onChange]);
+  }, [onChange, onSelect]);
 
   return (
     <input
       ref={inputRef}
       value={value}
       disabled={disabled}
-      onChange={(e) => {
-        // ✅ When typing manually, we keep value updating,
-        // but the parent should mark "selected:false" until a real place is picked.
-        onChange?.(e.target.value);
-      }}
-      onFocus={() => {
-        // ✅ Optional but helps iOS: put cursor properly, keep dropdown near input
-        // (also helps when page is scrollable)
-        try {
-          inputRef.current?.scrollIntoView?.({ block: "center", behavior: "smooth" });
-        } catch {}
-      }}
+      onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
       autoComplete="off"
       inputMode="search"
