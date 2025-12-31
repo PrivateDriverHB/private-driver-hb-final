@@ -9,31 +9,28 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 export async function POST(req) {
-  const sig = req.headers.get("stripe-signature");
-  if (!sig) {
-    return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 });
-  }
-
   const body = await req.text();
+  const signature = req.headers.get("stripe-signature");
 
   let event;
+
   try {
     event = stripe.webhooks.constructEvent(
       body,
-      sig,
+      signature,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("❌ Webhook signature error:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    console.error("❌ Webhook signature verification failed:", err.message);
+    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
-  // ✅ Event principal
+  console.log("✅ Stripe event received:", event.type);
+
+  // 👉 pour l’instant on confirme juste la réception
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    console.log("✅ checkout.session.completed:", session.id);
-    // 👉 ici on branchera l’envoi d’emails Resend
+    console.log("🎉 Checkout session completed");
   }
 
-  return NextResponse.json({ received: true }, { status: 200 });
+  return NextResponse.json({ received: true });
 }
